@@ -11,7 +11,7 @@ import os
 # =======================================================
 # CONFIGURAÇÃO DA IA (GEMINI)
 # =======================================================
-genai.configure(api_key="AIzaSyDcSKptO9oDOsgOAKQwF4cpZvMqqDHN9-E")
+genai.configure(api_key="AIzaSyDX_mtdZAJbrHuyQxMv858kD3Qc1TgSmyE")
 modelo = genai.GenerativeModel('gemini-2.5-flash')
 
 # =======================================================
@@ -86,67 +86,69 @@ class AssistenteApp(tk.Tk):
             self.mostrar_tela_resposta(self.ultima_pergunta, self.ultima_resposta)
 
     def ler_em_voz_alta(self, texto):
-        """Lê o texto usando a voz natural do Google (gTTS) com correção de velocidade."""
+        print("Lendo em voz alta com Edge TTS...")
+        """Lê o texto usando a voz neural da Microsoft (Edge TTS) à prova de bloqueios."""
         self.parar_audio = False 
         
         def thread_ler():
             import time
             import random 
             import os
-            from gtts import gTTS
+            import asyncio
+            import edge_tts
             import pygame
             
-            texto_limpo = re.sub(r'\*\*', '', texto)
-            texto_limpo = texto_limpo.replace('* ', '')
+            # Limpa os asteriscos e as hashtags do markdown para a IA não ler "jogo da velha"
+            texto_limpo = re.sub(r'[\*\#]', '', texto)
             texto_limpo = texto_limpo.replace('• ', '')
             
             try:
-                # 1. Garante que o pygame está ligado e limpo
+                # 1. Garante que o pygame está limpo
                 if not pygame.mixer.get_init():
                     pygame.mixer.init()
                 else:
                     pygame.mixer.music.stop()
                     pygame.mixer.music.unload()
 
-                # 2. Gera um nome de arquivo único
+                # 2. Nome de arquivo único
                 id_unico = int(time.time()) + random.randint(1, 1000)
                 arquivo_audio = f"v_ia_{id_unico}.mp3"
                 
-                # 3. Baixa e salva o áudio do Google
-                tts = gTTS(text=texto_limpo, lang='pt', tld='com.br')
-                tts.save(arquivo_audio)
+                # 3. Função assíncrona para baixar a voz da Microsoft
+                async def gerar_audio():
+                    # Você pode trocar 'pt-BR-FranciscaNeural' por 'pt-BR-AntonioNeural' se preferir voz masculina
+                    communicate = edge_tts.Communicate(texto_limpo, "pt-BR-AntonioNeural")
+                    await communicate.save(arquivo_audio)
                 
-                # Pausa para o HD do Windows terminar de salvar o arquivo
-                time.sleep(0.5) 
+                # Executa o download da voz
+                asyncio.run(gerar_audio())
                 
-                # 4. Carrega, define volume e TOCA
+                time.sleep(0.2) # Pausa para o HD salvar
+
+                # 4. Toca o áudio
                 pygame.mixer.music.load(arquivo_audio)
+
                 pygame.mixer.music.set_volume(1.0)
                 pygame.mixer.music.play()
                 
-                # ---> A MÁGICA ESTÁ AQUI <---
-                # Pausa de 0.2 segundos para a placa de som "engatar" o áudio 
-                # antes do programa verificar se está tocando.
-                time.sleep(0.5)
+                time.sleep(0.2) # Pausa para "engatar" o som
                 
-                # 5. Monitora a execução e o botão de parar
+                # 5. Monitora se apertou parar
                 while pygame.mixer.music.get_busy():
                     if self.parar_audio:
                         pygame.mixer.music.stop()
                         break
                     pygame.time.Clock().tick(10)
                     
-                # 6. Limpa o áudio da memória
+                # 6. Limpa e exclui
                 pygame.mixer.music.unload()
-                
-                # Tenta apagar o arquivo para manter sua pasta limpa
                 try:
                     os.remove(arquivo_audio)
                 except:
                     pass
                     
             except Exception as e:
-                print(f"Erro ao tentar falar: {e}")
+                print(f"Erro ao tentar falar com Edge TTS: {e}")
                 
         threading.Thread(target=thread_ler, daemon=True).start()
 
